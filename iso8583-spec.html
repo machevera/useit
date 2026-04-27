@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISO 8583 — Middleware Perú/Chile</title>
+<style>
+  /* ── Ripley Design Tokens ── */
+  :root {
+    --ripley-red:    #E3051B;
+    --ripley-yellow: #F5A200;
+    --ripley-purple: #6B2D8B;
+    --ripley-white:  #FFFFFF;
+    --ripley-gray1:  #F8F8F8;
+    --ripley-gray2:  #EBEBEB;
+    --ripley-gray3:  #AAAAAA;
+    --ripley-text:   #222222;
+    --badge-m:       #1A7A3E;
+    --badge-me:      #6B2D8B;
+    --badge-c:       #B87200;
+    --badge-ce:      #3366AA;
+    --badge-o:       #777777;
+    --shadow:        0 2px 12px rgba(0,0,0,0.10);
+    --drawer-width:  480px;
+    --transition:    0.28s cubic-bezier(.4,0,.2,1);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--ripley-gray1);
+    color: var(--ripley-text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--ripley-white);
+    border-top: 4px solid var(--ripley-red);
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--ripley-gray2);
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 32px;
+  }
+  .brand-logo .r { background: var(--ripley-red);    width: 44px; height: 32px; border-radius: 4px 0 0 4px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:16px; }
+  .brand-logo .y { background: var(--ripley-yellow); width: 14px; height: 32px; }
+  .brand-logo .p { background: var(--ripley-purple); width: 22px; height: 32px; border-radius: 0 4px 4px 0; }
+  .brand-title  { font-size: 16px; font-weight: 700; color: var(--ripley-text); line-height: 1.2; }
+  .brand-sub    { font-size: 11px; color: var(--ripley-gray3); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    border-bottom: 2px solid var(--ripley-gray2);
+    background: var(--ripley-white);
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ripley-gray3);
+    cursor: pointer;
+    margin-bottom: -2px;
+    transition: color var(--transition), border-color var(--transition);
+  }
+  .tab-btn.active {
+    color: var(--ripley-purple);
+    border-bottom-color: var(--ripley-purple);
+  }
+  .tab-btn:hover:not(.active) { color: var(--ripley-text); }
+
+  /* ── FILTER BAR ── */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 20px;
+    flex-wrap: wrap;
+    background: var(--ripley-white);
+  }
+  .filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .filter-label { font-size: 11px; font-weight: 700; color: var(--ripley-gray3); text-transform: uppercase; white-space: nowrap; }
+
+  .toggle-btn {
+    background: var(--ripley-gray1);
+    border: 1.5px solid var(--ripley-gray2);
+    border-radius: 20px;
+    padding: 4px 13px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ripley-text);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+  .toggle-btn:hover { border-color: var(--ripley-purple); color: var(--ripley-purple); }
+  .toggle-btn.active {
+    background: var(--ripley-purple);
+    border-color: var(--ripley-purple);
+    color: #fff;
+  }
+  .toggle-btn.red.active  { background: var(--ripley-red);    border-color: var(--ripley-red); }
+  .toggle-btn.gold.active { background: var(--ripley-yellow); border-color: var(--ripley-yellow); color: #222; }
+
+  .search-box {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--ripley-gray1);
+    border: 1.5px solid var(--ripley-gray2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    min-width: 200px;
+  }
+  .search-box input {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    outline: none;
+    color: var(--ripley-text);
+    width: 100%;
+  }
+  .search-box svg { flex-shrink: 0; opacity: .5; }
+
+  /* ── MAIN CONTENT ── */
+  main { padding: 16px 20px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── TABLE ── */
+  .table-wrap {
+    background: var(--ripley-white);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+  }
+  thead tr {
+    background: var(--ripley-purple);
+    color: #fff;
+  }
+  thead th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    white-space: nowrap;
+  }
+  thead th:first-child { border-radius: 8px 0 0 0; }
+  thead th:last-child  { border-radius: 0 8px 0 0; }
+
+  tbody tr { border-bottom: 1px solid var(--ripley-gray2); transition: background .15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #f4eef8; }
+  tbody tr.row-na { opacity: .5; }
+  tbody td { padding: 8px 12px; vertical-align: middle; }
+
+  td.de-num {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--ripley-purple);
+    white-space: nowrap;
+  }
+  td.de-name { font-weight: 600; min-width: 180px; }
+  td.de-fmt  { font-family: monospace; font-size: 12px; color: #555; white-space: nowrap; }
+  td.de-len  { font-family: monospace; font-size: 12px; color: #555; white-space: nowrap; }
+  td.de-comment { font-size: 13.5px; color: #555; min-width: 200px; }
+
+  /* ── TOOLTIP ── */
+  .tt-wrap { position: relative; display: inline-block; }
+  .tt {
+    visibility: hidden; opacity: 0; pointer-events: none;
+    background: #1a1a2e; color: #fff; font-size: 12px; font-weight: 400;
+    line-height: 1.5; border-radius: 7px; padding: 8px 12px;
+    position: absolute; bottom: calc(100% + 8px); left: 50%;
+    transform: translateX(-50%); white-space: normal; width: 250px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3); z-index: 500; transition: opacity .18s;
+  }
+  .tt::after {
+    content: ''; position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%); border: 6px solid transparent;
+    border-top-color: #1a1a2e;
+  }
+  .tt-wrap:hover .tt { visibility: visible; opacity: 1; }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-M  { background: #e6f4ec; color: var(--badge-m);  border: 1px solid #b7dfc5; }
+  .badge-ME { background: #f0e8f6; color: var(--badge-me); border: 1px solid #d4b3e8; }
+  .badge-C  { background: #fff4e0; color: var(--badge-c);  border: 1px solid #ffd480; cursor: pointer; }
+  .badge-C:hover { background: var(--ripley-yellow); color: #222; }
+  .badge-CE { background: #e8f0fc; color: var(--badge-ce); border: 1px solid #b3c8f0; }
+  .badge-O  { background: #f0f0f0; color: var(--badge-o);  border: 1px solid #ccc; }
+  .badge-NA { color: var(--ripley-gray3); font-size: 13px; }
+
+  .ref-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #f0e8f6;
+    color: var(--ripley-purple);
+    border: 1px solid #d4b3e8;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 1px;
+    white-space: nowrap;
+    transition: background var(--transition);
+  }
+  .ref-link:hover { background: var(--ripley-purple); color: #fff; }
+
+  /* ── RESULTS COUNT ── */
+  .results-info {
+    font-size: 12px;
+    color: var(--ripley-gray3);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--ripley-gray2);
+  }
+
+  /* ── DRAWER ── */
+  .drawer-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition);
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+  .drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: var(--drawer-width);
+    background: var(--ripley-white);
+    box-shadow: -4px 0 24px rgba(0,0,0,0.15);
+    z-index: 201;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform var(--transition);
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    background: var(--ripley-purple);
+    color: #fff;
+    padding: 14px 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .drawer-title-wrap { flex: 1; }
+  .drawer-breadcrumb {
+    font-size: 11px;
+    opacity: .75;
+    margin-bottom: 3px;
+  }
+  .drawer-breadcrumb span { cursor: pointer; }
+  .drawer-breadcrumb span:hover { text-decoration: underline; }
+  .drawer-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  .drawer-close {
+    background: rgba(255,255,255,.2);
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 50%;
+    width: 30px; height: 30px;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background var(--transition);
+  }
+  .drawer-close:hover { background: rgba(255,255,255,.4); }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px;
+  }
+
+  /* ── DRAWER CONTENT STYLES ── */
+  .drawer-section { margin-bottom: 20px; }
+  .drawer-section h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ripley-purple);
+    border-bottom: 2px solid var(--ripley-yellow);
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+  .drawer-section p { font-size: 13px; line-height: 1.6; color: #444; margin-bottom: 8px; }
+  .drawer-section ul { padding-left: 18px; font-size: 13px; line-height: 1.7; color: #444; }
+  .drawer-section code {
+    background: var(--ripley-gray1);
+    border: 1px solid var(--ripley-gray2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  .ref-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .ref-table th {
+    background: var(--ripley-gray1);
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 700;
+    border: 1px solid var(--ripley-gray2);
+    color: var(--ripley-purple);
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .ref-table td {
+    padding: 6px 10px;
+    border: 1px solid var(--ripley-gray2);
+    vertical-align: top;
+    line-height: 1.4;
+  }
+  .ref-table tr:nth-child(even) td { background: var(--ripley-gray1); }
+
+  .sub-element-card {
+    border: 1.5px solid var(--ripley-gray2);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color var(--transition);
+  }
+  .sub-element-card:hover { border-color: var(--ripley-purple); }
+  .sub-element-card-header {
+    background: var(--ripley-gray1);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sub-element-card-header .se-id {
+    background: var(--ripley-purple);
+    color: #fff;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: monospace;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .sub-element-card-header .se-name { font-weight: 600; font-size: 13px; }
+  .sub-element-card-header .se-arrow { margin-left: 8px; color: var(--ripley-purple); font-size: 16px; transition: transform 0.25s; }
+  .se-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; padding: 0 12px; }
+  .sub-element-card.open .se-body { max-height: 900px; padding: 10px 12px 14px; }
+  .sub-element-card.open .se-arrow { transform: rotate(90deg); }
+
+  /* ── MTIS / HEADER TAB ── */
+  .section-card {
+    background: var(--ripley-white);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .section-card h2 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ripley-purple);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 3px solid var(--ripley-yellow);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #555;
+    margin: 14px 0 8px;
+  }
+  .mti-group { margin-bottom: 16px; }
+  .mti-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ripley-red);
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .format-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .format-card {
+    background: var(--ripley-gray1);
+    border: 1px solid var(--ripley-gray2);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .format-card .fc-code { font-family: monospace; font-weight: 700; font-size: 15px; color: var(--ripley-purple); margin-bottom: 4px; }
+  .format-card .fc-desc { font-size: 12px; color: #555; line-height: 1.4; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--ripley-white);
+    border-top: 1px solid var(--ripley-gray2);
+    font-size: 11px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    :root { --drawer-width: 100vw; }
+    .header-top { gap: 10px; }
+    .filter-bar { gap: 8px; }
+    .search-box { min-width: 140px; margin-left: 0; width: 100%; }
+    main { padding: 10px; }
+    thead th { font-size: 10px; padding: 8px 8px; }
+    tbody td { padding: 6px 8px; }
+  }
+
+  @media (max-width: 480px) {
+    .brand-title { font-size: 13px; }
+    .tabs { overflow-x: auto; }
+    .tab-btn { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--ripley-gray3);
+  }
+  .empty-state svg { opacity: .3; margin-bottom: 12px; }
+  .empty-state p { font-size: 14px; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--ripley-gray1); }
+  ::-webkit-scrollbar-thumb { background: var(--ripley-gray2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--ripley-gray3); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-logo">
+        <div class="r">R</div>
+        <div class="y"></div>
+        <div class="p"></div>
+      </div>
+      <div>
+        <div class="brand-title">ISO 8583 Specification</div>
+        <div class="brand-sub">Middleware Perú/Chile — v1.0 · Diciembre 2025</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('des')">📋 Data Elements</button>
+    <button class="tab-btn" onclick="switchTab('header')">🔧 Cabecera &amp; MTI</button>
+    <button class="tab-btn" onclick="switchTab('formats')">📖 Formatos &amp; Leyenda</button>
+  </div>
+
+  <!-- FILTER BAR (only for DEs tab) -->
+  <div class="filter-bar" id="filterBar">
+    <div class="filter-group">
+      <span class="filter-label">Mensaje</span>
+      <button class="toggle-btn active" data-msg="compra"   onclick="toggleMsg(this)">Compra</button>
+      <button class="toggle-btn"       data-msg="reverso"  onclick="toggleMsg(this)">Reverso</button>
+      <button class="toggle-btn"       data-msg="saldo"    onclick="toggleMsg(this)">Consulta Saldo</button>
+      <button class="toggle-btn"       data-msg="sign"     onclick="toggleMsg(this)">Sign On/Off</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Dirección</span>
+      <button class="toggle-btn red active" data-dir="both" onclick="toggleDir(this,'both')">Ambos</button>
+      <button class="toggle-btn red"        data-dir="req"  onclick="toggleDir(this,'req')">REQ</button>
+      <button class="toggle-btn red"        data-dir="resp" onclick="toggleDir(this,'resp')">RESP</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Obligatoriedad</span>
+      <span class="tt-wrap">
+        <button class="toggle-btn gold active" data-obl="all" onclick="toggleObl(this,'all')">Todos</button>
+        <span class="tt">Mostrar todos los Data Elements sin filtrar por obligatoriedad</span>
+      </span>
+      <span class="tt-wrap">
+        <button class="toggle-btn gold" data-obl="M" onclick="toggleObl(this,'M')">M</button>
+        <span class="tt"><strong>Mandatorio</strong> — campo obligatorio en todos los casos</span>
+      </span>
+      <span class="tt-wrap">
+        <button class="toggle-btn gold" data-obl="ME" onclick="toggleObl(this,'ME')">ME</button>
+        <span class="tt"><strong>Mandatory Echo</strong> — obligatorio en la respuesta con el mismo valor del requerimiento</span>
+      </span>
+      <span class="tt-wrap">
+        <button class="toggle-btn gold" data-obl="C" onclick="toggleObl(this,'C')">C##</button>
+        <span class="tt"><strong>Condicional</strong> — presente solo bajo una condición numerada (hacer clic en el badge para ver el detalle)</span>
+      </span>
+      <span class="tt-wrap">
+        <button class="toggle-btn gold" data-obl="CE" onclick="toggleObl(this,'CE')">CE</button>
+        <span class="tt"><strong>Conditional Echo</strong> — mandatorio Echo si la condición se cumplió en el requerimiento</span>
+      </span>
+    </div>
+    <div class="search-box">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="Buscar DE# o nombre…" oninput="applyFilters()">
+    </div>
+  </div>
+</header>
+
+<!-- OVERLAY + DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title-wrap">
+      <div class="drawer-breadcrumb" id="drawerBreadcrumb"></div>
+      <div class="drawer-title"     id="drawerTitle">Detalle</div>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- MAIN -->
+<main>
+
+  <!-- TAB: DATA ELEMENTS -->
+  <div class="tab-panel active" id="panel-des">
+    <div class="table-wrap">
+      <div class="results-info" id="resultsInfo">Cargando…</div>
+      <table id="deTable">
+        <thead>
+          <tr>
+            <th>DE #</th>
+            <th>Nombre / Name</th>
+            <th>Formato</th>
+            <th>Long.</th>
+            <th id="colReq">REQ</th>
+            <th id="colResp">RESP</th>
+            <th>Comentarios &amp; Referencias</th>
+          </tr>
+        </thead>
+        <tbody id="deTableBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <p>No se encontraron Data Elements con los filtros aplicados.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: CABECERA + MTI -->
+  <div class="tab-panel" id="panel-header">
+    <div class="section-card">
+      <h2>🔧 Cabecera de los Mensajes</h2>
+      <table class="ref-table">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>REQ</th><th>RESP</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Longitud total</strong></td><td><code>2B binary</code></td><td>M</td><td>M</td><td>Número total de bytes del mensaje en formato HEX. Ej: trama de 121 bytes → <code>0079</code></td></tr>
+          <tr><td><strong>Carácter Fijo</strong></td><td><code>an 1</code></td><td>M</td><td>M</td><td>ASCII 96 "<code>`</code>" o Hex <code>0x60</code></td></tr>
+          <tr><td><strong>TPDU</strong></td><td><code>n 4</code></td><td>M</td><td>M</td><td>REQ: <code>00200030</code> (Origen→Destino). RESP: invertir → <code>00300020</code></td></tr>
+          <tr><td><strong>MTI</strong></td><td><code>n 4</code></td><td>M</td><td>M</td><td>ID Tipo de Mensaje (ver tabla MTI abajo)</td></tr>
+          <tr><td><strong>1er Bitmap</strong></td><td><code>b 64</code></td><td>M</td><td>M</td><td>Campos ISO del 1 al 64 presentes en la trama</td></tr>
+          <tr><td><strong>2do Bitmap</strong></td><td><code>b 64</code></td><td>C</td><td>C</td><td>Presente si hay campos ISO del 65 al 128</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-card">
+      <h2>📡 Tabla de MTI</h2>
+      <div class="mti-group">
+        <div class="mti-group-title">Authorization / 01xx</div>
+        <table class="ref-table">
+          <thead><tr><th>MTI</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><code>0100</code></td><td>PreAuthorization Request</td></tr>
+            <tr><td><code>0101</code></td><td>Repeticiones de PreAutorización</td></tr>
+            <tr><td><code>0110</code></td><td>PreAuthorization Request Response</td></tr>
+            <tr><td><code>0120</code></td><td>Authorization Advice</td></tr>
+            <tr><td><code>0130</code></td><td>Authorization Advice Response</td></tr>
+            <tr><td><code>0200</code></td><td>Authorization Request</td></tr>
+            <tr><td><code>0210</code></td><td>Authorization Request Response</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mti-group">
+        <div class="mti-group-title">Reversal / 04xx</div>
+        <table class="ref-table">
+          <thead><tr><th>MTI</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><code>0400</code></td><td>Reversal Request</td></tr>
+            <tr><td><code>0410</code></td><td>Reversal Request Response</td></tr>
+            <tr><td><code>0420</code></td><td>Reversal Advice</td></tr>
+            <tr><td><code>0430</code></td><td>Reversal Advice Response</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mti-group">
+        <div class="mti-group-title">Network Management / 08xx</div>
+        <table class="ref-table">
+          <thead><tr><th>MTI</th><th>Descripción</th></tr></thead>
+          <tbody>
+            <tr><td><code>0800</code></td><td>Network Management Request</td></tr>
+            <tr><td><code>0810</code></td><td>Network Management Request Response</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: FORMATOS + LEYENDA -->
+  <div class="tab-panel" id="panel-formats">
+    <div class="section-card">
+      <h2>📖 Descripción de Formatos (Anexo I)</h2>
+      <div class="format-grid">
+        <div class="format-card"><div class="fc-code">n</div><div class="fc-desc">Dígitos numéricos, formato Decimal BCD. Alineados a la izquierda con ceros (excepto DE-02 y DE-35).</div></div>
+        <div class="format-card"><div class="fc-code">an</div><div class="fc-desc">Caracteres alfanuméricos.</div></div>
+        <div class="format-card"><div class="fc-code">ans</div><div class="fc-desc">Caracteres alfanuméricos y especiales.</div></div>
+        <div class="format-card"><div class="fc-code">b</div><div class="fc-desc">Representación binaria de datos en bytes de 8 bits.</div></div>
+        <div class="format-card"><div class="fc-code">B</div><div class="fc-desc">Número binario con longitud variable (bytes de datos binarios). Utilizado por Union Pay.</div></div>
+        <div class="format-card"><div class="fc-code">F</div><div class="fc-desc">Fixed length — longitud fija.</div></div>
+        <div class="format-card"><div class="fc-code">LLVAR</div><div class="fc-desc">Longitud variable, cabecera de 1 byte en formato Decimal. Alineada con ceros a la izquierda.</div></div>
+        <div class="format-card"><div class="fc-code">LLLVAR</div><div class="fc-desc">Longitud variable, cabecera de 2 bytes en formato Decimal. Alineada con ceros a la izquierda.</div></div>
+        <div class="format-card"><div class="fc-code">..nn</div><div class="fc-desc">Campo de longitud variable de hasta <em>nn</em> caracteres (indicado tras los dos puntos).</div></div>
+      </div>
+    </div>
+    <div class="section-card">
+      <h2>🏷️ Leyenda de Obligatoriedad</h2>
+      <table class="ref-table">
+        <thead><tr><th>Código</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-M">M</span></td><td><strong>Mandatorio</strong> — campo obligatorio en todos los casos.</td></tr>
+          <tr><td><span class="badge badge-ME">ME</span></td><td><strong>Mandatory Echo</strong> — obligatorio en la respuesta con el mismo valor del requerimiento.</td></tr>
+          <tr><td><span class="badge badge-C">C##</span></td><td><strong>Condicional</strong> — presente según la condición numerada (hacer clic para ver detalle).</td></tr>
+          <tr><td><span class="badge badge-CE">CE</span></td><td><strong>Conditional Echo</strong> — mandatorio Echo si la condición se cumplió en el requerimiento.</td></tr>
+          <tr><td><span class="badge badge-O">O</span></td><td><strong>Opcional</strong> — puede o no estar presente.</td></tr>
+          <tr><td><span class="badge-NA">—</span></td><td>No aplica para este tipo de mensaje/dirección.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════════
+const CONDITIONS = {
+  C01: 'Si este campo está presente en un requerimiento ADVICE, debe venir en la respuesta.',
+  C02: 'En las respuestas 0110 puede venir presente para Autorizaciones parciales.',
+  C03: 'Este campo solo viajará cuando el track 1 sea leído en el terminal y no esté presente el track 2, ni sea una transacción con chip.',
+  C04: 'Para contacto y contactless chip (ICC), se debe enviar el valor equivalente al TAG EMV 5F34. Para operaciones donde no se lee el chip se debe informar ceros en el DE-23.',
+  C05: 'Este campo solo viajará cuando se realice lectura por banda magnética o para las transacciones con chip. El DE-35 transporta los datos leídos del chip del TAG EMV 57 (Datos equivalentes al Track 2).',
+  C06: 'Es obligatorio en el mensaje de autorización cuando el DE-39 (Código de respuesta) contiene el valor 00 o 10.',
+  C07: 'DE-39 (Código de respuesta) define la disposición de un mensaje anterior o una acción realizada como resultado de la recepción de un mensaje anterior.',
+  C08: 'Viajará cuando la tarjeta utilizada esté configurada para pedir PIN, debe venir desde el origen (POS). Para las operaciones de reversas el PIN Block no debe viajar.',
+  C09: 'En este campo se enviará en los requerimientos cuando el tipo de crédito sea un Diferido (ver campo tipo de crédito en tabla DE-112).',
+  C10: 'Este campo es obligatorio en mensajes 0400 y 0420.',
+  C11: 'Solo Comercio electrónico: En los mensajes 0100 y sus correspondientes anulaciones, los adquirentes deben utilizar el código 59 para indicar el comercio electrónico a través de una red abierta (por ejemplo, Internet). Pago Recurrente: dato = 08.',
+  C12: 'En este campo se recibirá esta información para las respuestas, como resultado del recalculo cuando es una Autorización Parcial.',
+  C13: 'Este campo viajará en un requerimiento solo cuando exista al menos un monto de un ítem adicional (IVA, Servicio…) o para la transacción de servicio. En las respuestas viaja el recalculo de una Autorización Parcial y los Intereses en los Pagos Diferidos que apliquen.',
+  C14: 'Este campo se recibirá en las respuestas de consultas de saldos y autorizaciones parciales.',
+  C15: 'Este campo se enviará en los mensajes cuando la operación requiera el uso de cualquier información detallada en DE-48 (SE08 para simulación de avance en cuotas, SE09 para avance en cuotas, SE43 para 3DS…).',
+  C16: 'En este campo se recibirá información operativa (mensajes, publicidad o información de productos propietarios de la Red).',
+  C17: 'Viajará cuando la tarjeta utilizada esté configurada para pedir PIN, y viene desde el origen (POS o ATM) el DE-52.',
+  C18: 'Siempre que venga del origen; caso contrario la transacción será rechazada.',
+  C19: 'Para contacto y Contactless Chip (ICC).',
+  C20: 'Si la Transacción a Reversar fue Autorizada y se recibió este campo en la autorización.',
+  C21: 'Válido para transacciones de tipo Offline.',
+  C22: 'Si la transacción lleva informados subelementos que requieren respuesta de la marca, este campo estará informado en la respuesta.',
+  C23: 'En este campo debe viajar los datos adicionales citados en la tabla, siempre que aplique según la operación realizada. Cuando la autorización es parcial se debe informar con el valor de los datos adicionales proporcional al monto a autorizar.',
+  C24: 'El campo es mandatorio para transacciones desde el POS.',
+  C25: 'El campo viajará únicamente cuando sea una reversa parcial.',
+  C26: 'El campo es obligatorio en operaciones de Retiro. Consta de 2 campos alfanuméricos: (1) Tipo de Operación [1 posición: C=crédito, D=débito]; (2) Importe de la Comisión [8 posiciones]. Para marca Mastercard, cuando no hay comisión el campo no debe viajar.',
+};
+
+const TABLES = {
+  '3.2': {
+    title: 'Processing Code (DE-03)',
+    desc: 'Formato: TTAA0X',
+    sections: [
+      { subtitle: 'Subfield 1 (TT) — Tipo de Transacción', rows: [
+        ['00','Purchase'],['01','Cash Withdrawal'],['20','Purchase Return/Refund'],
+        ['30','Balance Inquiry'],['17','Cash Disbursement'],['50','Payment'],
+        ['51','ATM Installment Inquiry'],['52','ATM Installment Withdrawal'],['70','Pin Change'],
+      ]},
+      { subtitle: 'Subfield 2 (AA) — Cuenta Desde', rows: [
+        ['00','Default Account (not specified)'],['10','Savings Account'],
+        ['20','Checking Account'],['30','Credit Card Account'],
+      ]},
+      { subtitle: 'Subfield 3 (0X) — Cuenta Hacia', rows: [
+        ['00','Default Account (not specified)'],['10','Savings Account'],
+        ['20','Checking Account'],['30','Credit Card Account'],
+      ]},
+    ]
+  },
+  '3.3': {
+    title: 'POS Entry Mode (DE-22)',
+    desc: 'Formato: RRP — (RR=Tipo lectura, P=Capacidad PIN)',
+    sections: [
+      { subtitle: 'Subfield 1 (RR) — Tipo de Lectura', rows: [
+        ['00','PAN entry mode unknown'],
+        ['01','PAN manual entry / Card-Not-Present Recurring (primera vez, devoluciones)'],
+        ['02','PAN auto-entry via magnetic stripe (track data not required)'],
+        ['05','PAN auto-entry via chip'],
+        ['07','PAN auto-entry via contactless M/Chip'],
+        ['10','Credential on file / Recurring Payment (subsecuente)'],
+        ['79','Circuit Card [ICC] — Manual Fallback'],
+        ['80','Circuit Card [ICC] — Magnetic Stripe Fallback'],
+        ['81','PAN/Token via e-commerce con optional Identity Check (AAV o DSRP en UCAF)'],
+        ['90','PAN auto-entry via magnetic stripe'],
+        ['91','PAN auto-entry via contactless magnetic stripe'],
+      ]},
+      { subtitle: 'Subfield 2 (P) — Capacidad PIN del Terminal', rows: [
+        ['0','Unspecified or unknown'],
+        ['1','Terminal has PIN entry capability'],
+        ['2','Terminal does not have PIN entry capability'],
+      ]},
+    ]
+  },
+  '3.4': {
+    title: 'POS Condition Code (DE-25)',
+    sections: [
+      { rows: [
+        ['00','Transacciones Normales lectura 05-07-80 (UPI-Devolución)'],
+        ['06','Transacciones Normales lectura 05-07-80 (UPI-Preautorización) / Preautorización MC (Todas las lecturas)'],
+        ['08','Transacciones Manuales lectura 01 (UPI-Devolución) / Pago Recurrente Ecommerce'],
+        ['18','Transacciones Manuales lectura 01 (UPI-Preautorización)'],
+        ['51','Verificación de Cuenta — Ecommerce'],
+        ['59','Ecommerce'],
+        ['73','Preautorización Incremental UPI'],
+      ]}
+    ]
+  },
+  '3.5': {
+    title: 'POS PIN Capture Code (DE-26)',
+    desc: 'Número máximo de caracteres de PIN aceptados por el dispositivo.',
+    sections: [
+      { rows: [
+        ['00–03','Unspecified or unknown'],
+        ['04–12','Terminal has PIN entry capability'],
+        ['13–99','Terminal does not have PIN entry capability'],
+      ]}
+    ]
+  },
+  '3.6': {
+    title: 'Comisión cobrada por el Adquirente (DE-28)',
+    html: `<p>Longitud fija <code>ans 9</code>. Estructura:</p>
+<ul>
+<li><strong>Posiciones 1–2:</strong> Tipo de Operación. <code>C</code> = Crédito, <code>D</code> = Débito</li>
+<li><strong>Posiciones 2–9:</strong> Importe de la Comisión (8 posiciones alfanuméricas)</li>
+</ul>
+<p>Para marca Mastercard, cuando no hay comisión el campo no debe viajar.</p>`
+  },
+  '3.7': {
+    title: 'Retrieval Reference Number (DE-37)',
+    html: `<p>Formato: <code>ydddhhnnnnnn</code></p>
+<ul>
+<li><strong>Posiciones 1–4:</strong> Equivalente en <code>yddd</code> (fecha juliana) del campo 7</li>
+<li><strong>Posiciones 5–6:</strong> Horas del campo 7</li>
+<li><strong>Posiciones 7–12:</strong> Valor del campo 11 (STAN)</li>
+</ul>
+<p>⚠️ El valor del campo 37 no puede reutilizarse durante 48 horas o la transacción puede ser rechazada.</p>`
+  },
+  '3.8': {
+    title: 'Card Acceptor Name and Location (DE-43)',
+    html: `<p>Campo de longitud fija 40 bytes.</p>
+<table class="ref-table"><thead><tr><th>Posición</th><th>Contenido</th></tr></thead>
+<tbody>
+<tr><td>1–22</td><td>Card acceptor name</td></tr>
+<tr><td>23</td><td>Space</td></tr>
+<tr><td>24–36</td><td>City name</td></tr>
+<tr><td>37</td><td>Space</td></tr>
+<tr><td>38–40</td><td>Country code</td></tr>
+</tbody></table>`
+  },
+  '3.9': {
+    title: 'Additional Data Private (DE-48) — Sub-Elementos TLV',
+    isSubElements: true,
+    subElements: [
+      { id: '01', name: 'TCC — Transaction Category Code', size: 'n1 / ans 1' },
+      { id: '08', name: 'ATM Installment Inquiry', size: 'n2 / ans 87' },
+      { id: '09', name: 'ATM Installment Withdrawal', size: 'n2 / ans 87' },
+      { id: '42', name: 'ECI — Electronic Commerce Indicators', size: 'n2 / n7' },
+      { id: '43', name: 'CAVV / UCAF — Universal Cardholder Auth Field', size: 'n2 / ans 32' },
+      { id: '66', name: '3D Secure Authentication Data', size: 'n5 ó n45' },
+      { id: '84', name: 'Merchant Advice Code', size: 'n2 / ans 2' },
+      { id: '87', name: 'Card Validation Code Result (CVC2)', size: 'n1 / an 1' },
+      { id: '92', name: 'CVC2', size: 'n2 / n3' },
+    ]
+  },
+  '3.10': {
+    title: 'Additional Amounts (DE-54)',
+    html: `<p>Permite la descripción detallada de montos adicionales. Formato MASTERCARD:</p>
+<table class="ref-table"><thead><tr><th>Bytes</th><th>Campo</th><th>Valores</th></tr></thead>
+<tbody>
+<tr><td>1–2</td><td>Account type (2 bytes an)</td><td>10=Savings, 20=Checking, 30=Credit Card</td></tr>
+<tr><td>3–4</td><td>Amount type (2 bytes an)</td><td>01=Ledger Balance, 02=Available Balance(*), 57=Original Amount, 90=Available Credit</td></tr>
+<tr><td>5–7</td><td>Currency code (3 bytes an)</td><td>ISO 4217</td></tr>
+<tr><td>8</td><td>Amount sign (1 byte)</td><td>C=Saldo Positivo, D=Saldo Negativo</td></tr>
+<tr><td>9–20</td><td>Amount (12 bytes an)</td><td>Justificado con ceros a la izquierda</td></tr>
+</tbody></table>
+<p>(*) Para "Consulta de promociones", código 02 = Saldo de puntos MaxiDolar.</p>`
+  },
+  '3.11': {
+    title: 'EMV / ICC Data (DE-55) — Tags TLV',
+    isEMV: true,
+    reqTags: [
+      { tag:'9F26', desc:'Application Cryptogram (AC)',                                                     idLen:2, dataLen:'8',      total:'11' },
+      { tag:'9F27', desc:'Cryptogram Information Data',                                                     idLen:2, dataLen:'1',      total:'4' },
+      { tag:'9F10', desc:'Issuer Application Data (IAD) — Mandatory si el tag es provisto por la tarjeta',  idLen:2, dataLen:'1–32',   total:'4–35' },
+      { tag:'9F37', desc:'Unpredictable Number',                                                            idLen:2, dataLen:'4',      total:'7' },
+      { tag:'9F36', desc:'Application Transaction Counter',                                                 idLen:2, dataLen:'2',      total:'5' },
+      { tag:'95',   desc:'Terminal Verification Result (TVR)',                                              idLen:1, dataLen:'5',      total:'7' },
+      { tag:'9A',   desc:'Transaction Date',                                                               idLen:1, dataLen:'3',      total:'5' },
+      { tag:'9C',   desc:'Transaction Type',                                                               idLen:1, dataLen:'1',      total:'3' },
+      { tag:'9F02', desc:'Amount Authorized',                                                              idLen:2, dataLen:'6',      total:'9' },
+      { tag:'5F2A', desc:'Transaction Currency Code',                                                      idLen:2, dataLen:'2',      total:'5' },
+      { tag:'82',   desc:'Application Interchange Profile',                                                idLen:1, dataLen:'2',      total:'4' },
+      { tag:'9F1A', desc:'Terminal Country Code',                                                          idLen:2, dataLen:'2',      total:'5' },
+      { tag:'9F34', desc:'Cardholder Verification Method — ★ Mandatory en todos los mensajes con DE-55',   idLen:2, dataLen:'3',      total:'6' },
+      { tag:'9F33', desc:'Terminal Capabilities',                                                          idLen:2, dataLen:'3',      total:'6' },
+      { tag:'84',   desc:'Dedicated File Name',                                                            idLen:1, dataLen:'5–16',   total:'7–18' },
+      { tag:'9F03', desc:'Amount Other',                                                                   idLen:2, dataLen:'6',      total:'9' },
+      { tag:'9F0A', desc:'Application Selection Registered Proprietary Data',                              idLen:2, dataLen:'Var',    total:'3–Var' },
+      { tag:'9F35', desc:'Terminal Type',                                                                  idLen:2, dataLen:'1',      total:'4' },
+      { tag:'9F1E', desc:'Interface Device (IFD) Serial Number',                                          idLen:2, dataLen:'8',      total:'11' },
+      { tag:'9F53', desc:'Transaction Category Code',                                                      idLen:2, dataLen:'1',      total:'4' },
+      { tag:'9F09', desc:'Application Version Number',                                                     idLen:2, dataLen:'2',      total:'5' },
+      { tag:'9F41', desc:'Transaction Sequence Counter',                                                   idLen:2, dataLen:'2–4',    total:'5–7' },
+      { tag:'9F6E', desc:'Third Party Data (non U.S. Regions Only)',                                       idLen:2, dataLen:'5–32',   total:'8–35' },
+    ],
+    respTags: [
+      { tag:'91', desc:'Issuer Authentication Data',                                                       idLen:1, dataLen:'8–16',   total:'10–18' },
+      { tag:'71', desc:'Issuer Script Template 1 (máx 10 instancias; no puede coexistir con tag 72)',      idLen:1, dataLen:'1–127',  total:'3–129' },
+      { tag:'72', desc:'Issuer Script Template 2 (máx 10 instancias; no puede coexistir con tag 71)',      idLen:1, dataLen:'1–127',  total:'3–129' },
+    ]
+  },
+  '3.12': {
+    title: 'Información Adicional (DE-57)',
+    html: `<p>Datos de productos propietarios en el mensaje de respuesta.</p>
+<h3 style="margin:12px 0 6px;font-size:13px;color:#555">Respuesta Compra Crédito/Débito (Premios)</h3>
+<ul><li>Longitud del campo: 2 bytes n3</li><li>Descripción del Premio: 40 bytes an (solo cuando se requiera imprimir un premio al final del voucher)</li></ul>
+<h3 style="margin:12px 0 6px;font-size:13px;color:#555">Respuesta Compra Tarjeta Prepago</h3>
+<ul><li>Longitud del campo: 2 bytes n3</li><li>Descripción del Saldo Disponible: 40 bytes an (saldo disponible de tarjeta prepago, impreso al final del voucher)</li></ul>`
+  },
+  '3.13': {
+    title: 'Additional POS Information (DE-60)',
+    html: `<p>El campo DE-60 contiene información adicional del POS en formato TLV.</p>
+<p style="background:#fff8e1;border-left:3px solid #F5A200;padding:8px 12px;border-radius:4px;font-size:12px">⚠️ El detalle completo de los sub-campos se encuentra en el archivo <strong>Detalles_B60.xlsx</strong> referenciado en la especificación.</p>
+<table class="ref-table"><thead><tr><th>Atributo</th><th>Valor</th></tr></thead>
+<tbody>
+<tr><td>Formato</td><td><code>LLLVAR</code></td></tr>
+<tr><td>Tipo</td><td><code>n 60</code></td></tr>
+<tr><td>Longitud máx.</td><td>60 dígitos</td></tr>
+<tr><td>Encoding</td><td>TLV (Tag-Length-Value)</td></tr>
+<tr><td>Mensajes</td><td>Requerimiento y Respuesta (CE)</td></tr>
+</tbody></table>`
+  },
+  '3.14': {
+    title: 'Advice Reason Code (DE-61)',
+    html: `<p>Longitud total 2 bytes BCD n3.</p>
+<ul>
+<li><strong>Subfield 1 (n3):</strong> Advice Reason Code — válido en mensajes Authorization Advice/0120</li>
+<li><strong>Subfield 2 (N4):</strong> Advice Detail Code — opcional dependiendo del Subfield 1</li>
+</ul>
+<table class="ref-table"><thead><tr><th>Código</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td><code>102</code></td><td>Alternate Issuer Route: IPS timed out — ADVICE DE CADENAS</td></tr>
+<tr><td><code>115</code></td><td>Transaction Processed via On-behalf Service Decision — CONTROL DE DECLINACIONES</td></tr>
+</tbody></table>`
+  },
+  '3.15': {
+    title: 'Network Management Information Code (DE-70)',
+    sections: [
+      { rows: [['0270','Test'],['061','Sign-On'],['062','Sign-Off']] }
+    ]
+  },
+  '3.16': {
+    title: 'Original Data Elements (DE-90)',
+    html: `<table class="ref-table"><thead><tr><th>Posición</th><th>Contenido</th></tr></thead>
+<tbody>
+<tr><td>1–4</td><td>Original MTI</td></tr>
+<tr><td>5–10</td><td>Original DE-11</td></tr>
+<tr><td>11–20</td><td>Original DE-7</td></tr>
+<tr><td>21–31</td><td>Original DE-32</td></tr>
+<tr><td>32–42</td><td>Original DE-33</td></tr>
+</tbody></table>`
+  },
+  '3.17': {
+    title: 'Replacement Amounts (DE-95)',
+    html: `<p>En una reversión parcial, contiene el monto corregido.</p>
+<table class="ref-table"><thead><tr><th>Posición</th><th>Contenido</th></tr></thead>
+<tbody>
+<tr><td>1–12</td><td>Actual Transaction Amount</td></tr>
+<tr><td>13–24</td><td>unused</td></tr>
+<tr><td>25–33</td><td>unused</td></tr>
+<tr><td>34–42</td><td>unused</td></tr>
+</tbody></table>
+<ul style="margin-top:10px">
+<li>Pos 1–12: Monto real corregido, justificado a la derecha con ceros.</li>
+<li>En reverso total, subfield 1 estará relleno de ceros.</li>
+<li>El monto se expresa en la moneda del Campo 49.</li>
+</ul>`
+  },
+  '3.18': {
+    title: 'Additional Data / Información Diferidos (DE-112)',
+    html: `<p>Estructura: Longitud 2B BCD · Sub TAG 3B fijo <code>005</code> · Longitud 3B fijo <code>006</code></p>
+<table class="ref-table"><thead><tr><th>Código</th><th>Tipo de Crédito</th></tr></thead>
+<tbody>
+<tr><td><code>00</code></td><td>Venta Corriente</td></tr>
+<tr><td><code>01</code></td><td>Diferido con Interés, días fijos(30), sin meses de gracia, pago total al comercio</td></tr>
+<tr><td><code>02</code></td><td>Diferido con interés, días fijos(30), con meses de gracia, pago total al comercio</td></tr>
+<tr><td><code>03</code></td><td>Diferidos con interés, días fijos(30), sin meses de gracia, pago en cuotas mes a mes al comercio</td></tr>
+<tr><td><code>04</code></td><td>Diferidos sin intereses, sin meses de gracia, pago total al comercio</td></tr>
+<tr><td><code>05</code></td><td>Diferidos sin interés, con meses de gracia, pago total al comercio</td></tr>
+<tr><td><code>06</code></td><td>Diferidos sin interés, sin meses de gracia, pagos en cuotas mes a mes al comercio</td></tr>
+<tr><td><code>10</code></td><td>Diferidos con intereses días reales, con/sin meses de gracia, pago total al comercio</td></tr>
+<tr><td><code>11</code></td><td>Diferidos con intereses días reales, con/sin meses de gracia, pago en cuotas mes a mes al comercio</td></tr>
+<tr><td><code>12</code></td><td>Cuotas con Intereses (30d fijos), sin gracia, un pago al comercio. Tasa Preferencial Avances</td></tr>
+<tr><td><code>13</code></td><td>Cuotas con Intereses (30d fijos), sin gracia, un pago al comercio. Tasa Preferencial 1</td></tr>
+<tr><td><code>14</code></td><td>Cuotas con Intereses (30d fijos), sin gracia, un pago al comercio. Tasa Preferencial 2</td></tr>
+<tr><td><code>15</code></td><td>Cuotas con Intereses (30d fijos), sin gracia, un pago al comercio. Tasa Preferencial 3</td></tr>
+<tr><td><code>16</code></td><td>Diferidos sin interés, con meses de gracia, pago en cuotas mes a mes al comercio</td></tr>
+</tbody></table>
+<ul style="margin-top:10px">
+<li><strong>Plazo en meses:</strong> 2 bytes an2 — Plazo Homologado</li>
+<li><strong>Meses de gracia:</strong> 2 bytes an2 — Si no existen, irán ceros</li>
+</ul>`
+  },
+  '3.19': {
+    title: 'Información de Lote Activo (DE-114)',
+    html: `<ul>
+<li>Longitud Total: 2 bytes BCD n3</li>
+<li>Número de lote activo: an6</li>
+</ul>`
+  },
+  '3.20': {
+    title: 'Desglose Monto Base IVA (DE-119)',
+    html: `<ul>
+<li>Longitud Total: 2 bytes BCD n3</li>
+<li>Monto Base grava IVA: 12 bytes an12</li>
+<li>Monto Base no grava IVA: 12 bytes an12</li>
+</ul>`
+  },
+  '3.21': {
+    title: 'Ítems Adicionales (DE-120)',
+    html: `<p><strong>Requerimiento — Transacciones de Pagos:</strong></p>
+<ul>
+<li>Longitud: 2 bytes n3</li>
+<li>Número de campos adicionales (POS): n1, rango 1–9</li>
+<li>Por cada ítem: Tipo (1 byte) + Monto (12 bytes)</li>
+</ul>
+<table class="ref-table"><thead><tr><th>Tipo</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td><code>1</code></td><td>IVA</td></tr>
+<tr><td><code>2</code></td><td>Otros servicios / Impuestos</td></tr>
+<tr><td><code>3</code></td><td>Propina</td></tr>
+<tr><td><code>4</code></td><td>Intereses</td></tr>
+<tr><td><code>5</code></td><td>Monto Fijo</td></tr>
+<tr><td><code>6–9</code></td><td>Campos libres para uso futuro</td></tr>
+</tbody></table>
+<p style="margin-top:10px"><strong>Respuesta — Pagos Diferidos:</strong></p>
+<ul>
+<li>Tipo de campo fijo: <code>4</code> (Intereses)</li>
+<li>Valor Intereses: 12 bytes an12</li>
+</ul>`
+  },
+};
+
+const SUB_ELEMENTS = {
+  '01': {
+    title: 'SE-01 — Transaction Category Code (TCC)',
+    html: `<table class="ref-table"><thead><tr><th>Valor</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td><code>A</code></td><td>Auto/Vehicle Rental</td></tr>
+<tr><td><code>C</code></td><td>Cash Disbursement</td></tr>
+<tr><td><code>F</code></td><td>Restaurant</td></tr>
+<tr><td><code>H</code></td><td>Hotel/Motel</td></tr>
+<tr><td><code>O</code></td><td>Hospitalization, College</td></tr>
+<tr><td><code>P</code></td><td>Payment Transaction</td></tr>
+<tr><td><code>R</code></td><td>Retail Sale</td></tr>
+<tr><td><code>T</code></td><td>Phone, Mail, or Electronic Commerce Order</td></tr>
+<tr><td><code>U</code></td><td>Unique</td></tr>
+<tr><td><code>X</code></td><td>Airline and Other Transportation Services</td></tr>
+<tr><td><code>Z</code></td><td>ATM Cash Disbursement</td></tr>
+</tbody></table>`
+  },
+  '08': {
+    title: 'SE-08 — ATM Installment Inquiry',
+    html: `<p>Para campos no obligatorios en el request, enviar ceros para completar la longitud.</p>
+<p>TAG: <code>08</code> | Longitud total: <code>87</code></p>
+<table class="ref-table"><thead><tr><th>Sub-campo</th><th>Long.</th><th>REQ/RESP</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td>Tipo Cuota</td><td>02</td><td>REQ</td><td><code>80</code> = Consulta de Pago en Cuotas en ATM</td></tr>
+<tr><td>Nº Pagos Solicitados</td><td>02</td><td>REQ</td><td>Valores válidos 01–99</td></tr>
+<tr><td>Nº Pagos Aprobados</td><td>02</td><td>RESP</td><td>Valores válidos 01–99</td></tr>
+<tr><td>Imp. Cuota mes</td><td>12</td><td>RESP</td><td>Monto del pago mensual</td></tr>
+<tr><td>Imp. Total</td><td>12</td><td>RESP</td><td>Monto total del anticipo de efectivo + intereses del emisor</td></tr>
+<tr><td>Tasa interés anual</td><td>04</td><td>RESP</td><td>Tasa de interés anual cobrada al tarjetahabiente</td></tr>
+<tr><td>Cod. Moneda cuotas</td><td>03</td><td>RESP</td><td>Moneda en que el emisor cobrará al tarjetahabiente</td></tr>
+<tr><td>Datos definidos Miembro 1</td><td>25</td><td>-</td><td>Datos del miembro</td></tr>
+<tr><td>Datos definidos Miembro 2</td><td>25</td><td>-</td><td>Datos del miembro</td></tr>
+</tbody></table>`
+  },
+  '09': {
+    title: 'SE-09 — ATM Installment Withdrawal',
+    html: `<p>Para campos no obligatorios en el request, enviar ceros para completar la longitud.</p>
+<p>TAG: <code>09</code> | Longitud total: <code>87</code></p>
+<table class="ref-table"><thead><tr><th>Sub-campo</th><th>Long.</th><th>REQ/RESP</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td>Tipo Cuota</td><td>02</td><td>REQ</td><td><code>81</code> = Retiro de Efectivo de Pago en Cuotas en ATM</td></tr>
+<tr><td>Nº Pagos Solicitados</td><td>02</td><td>REQ</td><td>Valores válidos 01–99</td></tr>
+<tr><td>Nº Pagos Aprobados</td><td>02</td><td>RESP</td><td>Valores válidos 01–99</td></tr>
+<tr><td>Imp. Cuota mes</td><td>12</td><td>RESP</td><td>Monto del pago mensual</td></tr>
+<tr><td>Imp. Total</td><td>12</td><td>RESP</td><td>Monto total del anticipo de efectivo + intereses del emisor</td></tr>
+<tr><td>Tasa interés anual</td><td>04</td><td>RESP</td><td>Tasa de interés anual cobrada al tarjetahabiente</td></tr>
+<tr><td>Cod. Moneda cuotas</td><td>03</td><td>RESP</td><td>Moneda en que el emisor cobrará al tarjetahabiente</td></tr>
+<tr><td>Datos definidos Miembro 1</td><td>25</td><td>-</td><td>Datos del miembro</td></tr>
+<tr><td>Datos definidos Miembro 2</td><td>25</td><td>-</td><td>Datos del miembro</td></tr>
+</tbody></table>`
+  },
+  '42': {
+    title: 'SE-42 — Electronic Commerce Indicators (ECI)',
+    html: `<p>TAG: <code>42</code> | Longitud: <code>7</code> (n2 + n7)</p>
+<p>Ejemplo: <code>42070103212</code></p>
+<table class="ref-table"><thead><tr><th>Valor</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td><code>910</code></td><td>Compras no seguras. Sin protocolo de seguridad; certificado del titular no utilizado</td></tr>
+<tr><td><code>210</code></td><td>Compras sin autenticación. Canal cifrado, sin control de identidad</td></tr>
+<tr><td><code>211</code></td><td>Comercio intentó autenticar sin éxito. Canal cifrado + intento de verificación de identidad. CAVV debe estar presente</td></tr>
+<tr><td><code>212</code></td><td>Autenticación completada con éxito. Canal cifrado. CAVV debe estar presente</td></tr>
+<tr><td><code>240</code></td><td>Compras sin autenticación. Canal tokenizado, sin control de identidad</td></tr>
+<tr><td><code>241</code></td><td>Comercio intentó autenticar sin éxito. Canal tokenizado. CAVV debe estar presente</td></tr>
+<tr><td><code>242</code></td><td>Autenticación completada con éxito. Canal tokenizado. CAVV debe estar presente</td></tr>
+</tbody></table>`
+  },
+  '43': {
+    title: 'SE-43 — UCAF (Universal Cardholder Authentication Field)',
+    html: `<p>TAG: <code>43</code> | Longitud: <code>28</code> (ANSI)</p>
+<p>Ejemplo MasterCard: <code>4328jIFaUUQf2wmkCBAAdJSVATAAAAA=</code></p>
+<p>Contiene el CAVV/AVV en formato Base64 para autenticación 3D Secure.</p>`
+  },
+  '66': {
+    title: 'SE-66 — 3D Secure Authentication Data',
+    html: `<p>TAG: <code>66</code> | Longitud: <code>05</code> ó <code>45</code></p>
+<table class="ref-table"><thead><tr><th>Sub-TAG</th><th>Long.</th><th>Valores</th></tr></thead>
+<tbody>
+<tr><td><code>01</code></td><td>01</td><td><code>1</code> = 3D Secure Version 1.0 (3DS 1.0)<br><code>2</code> = EMV 3D Secure (3DS 2.0)</td></tr>
+<tr><td><code>02</code></td><td>36</td><td>Directory Server Transaction ID (UUID variable)<br>Ej: <code>6a1556f9-2dcf-4eed-8622-6d0ea9adfc80</code></td></tr>
+</tbody></table>
+<p style="margin-top:8px">Ejemplo completo: <code>66450101202366a1556f9-2dcf-4eed-8622-6d0ea9adfc80</code></p>`
+  },
+  '84': {
+    title: 'SE-84 — Merchant Advice Code',
+    html: `<p>Solo presente en mensajes de <strong>respuesta</strong>, si es enviado por el emisor.</p>
+<p>TAG: <code>84</code> | Longitud: <code>2</code> | Tipo: ANS 2</p>
+<table class="ref-table"><thead><tr><th>Valor</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td><code>01</code></td><td>New account information available</td></tr>
+<tr><td><code>02</code></td><td>Cannot approve at this time, try again later</td></tr>
+<tr><td><code>03</code></td><td>Do not try again</td></tr>
+<tr><td><code>04</code></td><td>Token requirements not fulfilled for this token type</td></tr>
+<tr><td><code>21</code></td><td>Payment Cancellation (Mastercard use only)</td></tr>
+<tr><td><code>22</code></td><td>Merchant does not qualify for product code</td></tr>
+</tbody></table>`
+  },
+  '87': {
+    title: 'SE-87 — Card Validation Code Result (CVC2)',
+    html: `<p>Presente en mensajes de <strong>respuesta</strong> cuando esté presente el CVC2.</p>
+<p>TAG: <code>87</code> | Longitud: <code>1</code> | Tipo: AN 1</p>
+<table class="ref-table"><thead><tr><th>Valor</th><th>Descripción</th></tr></thead>
+<tbody>
+<tr><td><code>M</code></td><td>CVV2 match</td></tr>
+<tr><td><code>N</code></td><td>CVV2 no match</td></tr>
+<tr><td><code>P</code></td><td>Not processed</td></tr>
+<tr><td><code>S</code></td><td>CVV2 is on the card, but merchant indicated CVV2 is not present</td></tr>
+</tbody></table>`
+  },
+  '92': {
+    title: 'SE-92 — CVC2',
+    html: `<p>TAG: <code>92</code> | Longitud: n2 + n3</p>
+<p>Contiene el valor del CVC2 enviado desde el POS para validación.</p>`
+  },
+};
+
+// ── DE Definitions ──
+// Fields per message: [compraReq, compraResp, reversoReq, reversoResp, saldoReq, saldoResp, signReq, signResp]
+const DE_DATA = [
+  { de:2,  name:'Primary Account Number',             fmt:'LLVAR n',   len:'..19', vals:['M','—','M','C01','M','C01','—','—'],  refs:['C01'] },
+  { de:3,  name:'Processing Code',                    fmt:'n',         len:'6',    vals:['M','ME','M','ME','M','ME','—','—'],   refs:['3.2'] },
+  { de:4,  name:'Transaction Amount',                 fmt:'n',         len:'12',   vals:['M','C02','M','M','M','C02','—','—'],  refs:['C02'],
+    comment:'Según ISO 4217. Ej: 20.000 CLP → 000000020000. Consulta de Saldo: monto = 0.' },
+  { de:7,  name:'Transmission Date & Time (UTC)',     fmt:'n',         len:'10',   vals:['M','ME','M','ME','M','ME','M','ME'],  refs:[],
+    comment:'Formato: MMDDhhmmss' },
+  { de:11, name:'System Trace Audit Number',          fmt:'n',         len:'6',    vals:['M','ME','M','ME','M','ME','M','ME'],  refs:[] },
+  { de:12, name:'Local Transaction Time',             fmt:'n',         len:'6',    vals:['M','M','M','M','M','M','—','—'],      refs:[],
+    comment:'Formato: HHMMSS' },
+  { de:13, name:'Local Transaction Date',             fmt:'n',         len:'4',    vals:['M','M','M','M','M','M','—','—'],      refs:[],
+    comment:'Formato: MMDD' },
+  { de:14, name:'Expiration Date',                    fmt:'n',         len:'4',    vals:['C18','—','C18','—','M','—','—','—'],  refs:['C18'],
+    comment:'Formato: YYMM' },
+  { de:15, name:'Settlement Date',                    fmt:'n',         len:'4',    vals:['M','ME','M','ME','—','—','—','—'],    refs:[],
+    comment:'Formato: MMDD' },
+  { de:18, name:'Merchant Type (MCC)',                fmt:'n',         len:'4',    vals:['M','ME','M','ME','M','ME','—','—'],   refs:[] },
+  { de:19, name:'Acquiring Country Code',             fmt:'an',        len:'3',    vals:['CE','—','M','ME','M','ME','—','—'],   refs:[],
+    comment:'152=Chile, 604=Perú' },
+  { de:22, name:'POS Entry Mode',                     fmt:'n',         len:'3',    vals:['M','M','M','M','M','M','—','—'],      refs:['3.3'],
+    comment:'Formato: RRP' },
+  { de:23, name:'Card Sequence Number',               fmt:'n',         len:'3',    vals:['C04','ME','C04','CE','C04','CE','—','—'], refs:['C04'],
+    comment:'ICC: valor del TAG EMV 5F34. Sin chip: ceros.' },
+  { de:25, name:'POS Condition Code',                 fmt:'n',         len:'3',    vals:['C11','—','C11','—','—','—','—','—'],  refs:['C11','3.4'],
+    comment:'E-commerce: 59 | Pago Recurrente: 08' },
+  { de:26, name:'POS PIN Capture Code',               fmt:'n',         len:'2',    vals:['C17','—','C17','—','—','—','—','—'],  refs:['C17','3.5'] },
+  { de:28, name:'Commission charged by Acquirer',     fmt:'ans',       len:'9',    vals:['C26','ME C26','—','—','C26','ME C26','—','—'], refs:['C26','3.6'],
+    comment:'Obligatorio en operaciones de Retiro.' },
+  { de:32, name:'Acquiring Institution ID Code',      fmt:'LLVAR n',   len:'..11', vals:['M','ME','M','ME','M','ME','—','—'],   refs:[],
+    comment:'0085=Chile, 0086=Perú' },
+  { de:33, name:'Forwarding Institution ID Code',     fmt:'LLVAR n',   len:'..11', vals:['M','ME','M','ME','M','ME','—','—'],   refs:[],
+    comment:'0085=Chile, 0086=Perú' },
+  { de:35, name:'Track 2 Data',                       fmt:'LLVAR ans', len:'..37', vals:['C05','—','C05','—','C05','—','—','—'], refs:['C05'],
+    comment:'Dígitos hex "0"–"9" y "D" o "=". ICC: TAG EMV 57.' },
+  { de:37, name:'Retrieval Reference Number',         fmt:'F an',      len:'12',   vals:['M','ME','M','ME','M','ME','M','ME'],  refs:['3.7'],
+    comment:'Formato: ydddhhnnnnnn. No reutilizar en 48h.' },
+  { de:38, name:'Authorization ID Response',          fmt:'F ans',     len:'6',    vals:['—','C06','C20','C06','—','C06','—','—'], refs:['C06','C20'],
+    comment:'Solo para mensajes 0110.' },
+  { de:39, name:'Response Code',                      fmt:'F an',      len:'2',    vals:['—','M','C07','M','C07','M','C07','M'], refs:['C07'],
+    comment:'00=Aprobada, 10=Aprobada parcial, otro=Denegada' },
+  { de:41, name:'Terminal ID',                        fmt:'F ans',     len:'8',    vals:['M','ME','M','ME','M','ME','—','—'],   refs:[] },
+  { de:42, name:'Merchant ID',                        fmt:'F ans',     len:'15',   vals:['M','—','M','—','M','ME','—','—'],     refs:[] },
+  { de:43, name:'Card Acceptor Name and Location',    fmt:'F ans',     len:'40',   vals:['M','—','M','—','M','ME','—','—'],     refs:['3.8'] },
+  { de:45, name:'Track 1 Data',                       fmt:'LLVAR an',  len:'..79', vals:['C03','—','—','—','—','—','—','—'],    refs:['C03'],
+    comment:'Solo cuando track 1 leído y no presente track 2 ni chip.' },
+  { de:48, name:'Additional Data Private (TLV)',      fmt:'LLLVAR ans',len:'..326',vals:['C15','C22','C15','C22','—','—','—','—'], refs:['C15','C22','3.9'],
+    comment:'Sub-elementos: SE-01 TCC, SE-08/09 Cuotas ATM, SE-42 ECI, SE-43 UCAF, SE-66 3DS, SE-84 MAC, SE-87 CVV2R' },
+  { de:49, name:'Currency Code',                      fmt:'F n',       len:'3',    vals:['M','ME','—','—','M','ME','—','—'],    refs:[],
+    comment:'ISO 4217' },
+  { de:52, name:'PIN Block',                          fmt:'b',         len:'8',    vals:['C08','—','—','—','C08','—','—','—'],  refs:['C08'],
+    comment:'Reversas: PIN Block no debe viajar.' },
+  { de:54, name:'Additional Amounts',                 fmt:'LLLVAR an', len:'..20', vals:['—','C14','—','C14','—','C14','—','—'], refs:['C14','3.10'] },
+  { de:55, name:'ICC / EMV Data (TLV)',               fmt:'LLLVAR b',  len:'..256',vals:['C19','C19','C19','C19','C19','C19','—','—'], refs:['C19','3.11'],
+    comment:'Contacto y Contactless Chip (ICC). TLV con tags EMV.' },
+  { de:57, name:'Additional Data — Premios/Saldos Prepago', fmt:'LLLVAR an', len:'..50', vals:['—','C16','—','C16','—','—','—','—'], refs:['C16','3.12'] },
+  { de:60, name:'Additional POS Information',         fmt:'LLLVAR n',  len:'60',   vals:['CE','—','M','CE','M','—','—','—'],    refs:['3.13'] },
+  { de:61, name:'Advice Reason Code',                 fmt:'LLLVAR ans',len:'..36', vals:['C21','—','C24','—','—','—','—','—'],  refs:['C21','C24','3.14'] },
+  { de:70, name:'Network Management Info Code',       fmt:'n',         len:'4',    vals:['—','—','—','—','—','—','M','ME'],     refs:['3.15'],
+    comment:'0270=Test, 061=Sign-On, 062=Sign-Off' },
+  { de:90, name:'Original Data Elements',             fmt:'n',         len:'42',   vals:['—','—','M','CE','—','—','—','—'],     refs:['3.16'] },
+  { de:95, name:'Replacement Amounts',                fmt:'n',         len:'42',   vals:['—','—','C25','—','—','—','—','—'],    refs:['C25','3.17'],
+    comment:'Solo en reversa parcial.' },
+  { de:112, name:'Additional Data — Diferidos',       fmt:'LLLVAR ans',len:'..100',vals:['C09','—','C09','—','C09','CE','—','—'], refs:['C09','3.18'] },
+  { de:114, name:'Reserved National — Lote Activo',   fmt:'LLLVAR an', len:'..120',vals:['—','C24','—','C24','—','C24','—','—'], refs:['C24','3.19'] },
+  { de:119, name:'Additional Data — Montos Bases IVA',fmt:'LLLVAR an', len:'..120',vals:['M','C12','M','C12','—','—','—','—'],  refs:['C12','3.20'] },
+  { de:120, name:'Additional Data — Ítems Adicionales',fmt:'LLLVAR an',len:'..120',vals:['C23','C13','C12','C13','—','—','—','—'], refs:['C12','C13','C23','3.21'] },
+];
+
+// Message columns: [compraReq=0, compraResp=1, reversoReq=2, reversoResp=3, saldoReq=4, saldoResp=5, signReq=6, signResp=7]
+const MSG_COLS = {
+  compra:  { req: 0, resp: 1 },
+  reverso: { req: 2, resp: 3 },
+  saldo:   { req: 4, resp: 5 },
+  sign:    { req: 6, resp: 7 },
+};
+
+// ══════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════
+let state = { msg: 'compra', dir: 'both', obl: 'all', search: '' };
+let drawerStack = [];
+
+// ══════════════════════════════════════════════════════════════════
+// FILTER LOGIC
+// ══════════════════════════════════════════════════════════════════
+function applyFilters() {
+  state.search = document.getElementById('searchInput').value.toLowerCase();
+  const cols = MSG_COLS[state.msg];
+  const tbody = document.getElementById('deTableBody');
+  let visible = 0;
+
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const de = tr.dataset;
+    const deNum = de.denum;
+    const deName = de.dename.toLowerCase();
+
+    // Search filter
+    if (state.search && !deNum.includes(state.search) && !deName.includes(state.search)) {
+      tr.style.display = 'none'; return;
+    }
+
+    // Get REQ and RESP values for this message
+    const reqVal  = de['req'];
+    const respVal = de['resp'];
+
+    // Direction filter: hide row if both sides are '—'
+    const reqNA  = reqVal  === '—';
+    const respNA = respVal === '—';
+    if (state.dir === 'req'  && reqNA)  { tr.style.display = 'none'; return; }
+    if (state.dir === 'resp' && respNA) { tr.style.display = 'none'; return; }
+    if (state.dir === 'both' && reqNA && respNA) { tr.style.display = 'none'; return; }
+
+    // Obligatoriedad filter
+    if (state.obl !== 'all') {
+      const checkVal = state.dir === 'resp' ? respVal : (state.dir === 'req' ? reqVal : (reqVal + '|' + respVal));
+      let match = false;
+      if (state.obl === 'M')  match = checkVal.includes('M') && !checkVal.includes('ME');
+      if (state.obl === 'ME') match = checkVal.includes('ME');
+      if (state.obl === 'C')  match = /C\d\d/.test(checkVal) || checkVal === 'C';
+      if (state.obl === 'CE') match = checkVal.includes('CE');
+      if (!match) { tr.style.display = 'none'; return; }
+    }
+
+    tr.style.display = '';
+    visible++;
+  });
+
+  // Show/hide REQ/RESP columns based on direction
+  const colReq  = document.getElementById('colReq');
+  const colResp = document.getElementById('colResp');
+  tbody.querySelectorAll('.cell-req').forEach(c => {
+    c.style.display = state.dir === 'resp' ? 'none' : '';
+  });
+  tbody.querySelectorAll('.cell-resp').forEach(c => {
+    c.style.display = state.dir === 'req' ? 'none' : '';
+  });
+  colReq.style.display  = state.dir === 'resp' ? 'none' : '';
+  colResp.style.display = state.dir === 'req'  ? 'none' : '';
+
+  const total = tbody.querySelectorAll('tr').length;
+  document.getElementById('resultsInfo').textContent =
+    `Mostrando ${visible} de ${total} Data Elements · Mensaje: ${msgLabel(state.msg)} · Dirección: ${dirLabel(state.dir)}`;
+  document.getElementById('emptyState').style.display = visible === 0 ? 'block' : 'none';
+}
+
+function msgLabel(m) { return {compra:'Compra',reverso:'Reverso',saldo:'Consulta Saldo',sign:'Sign On/Off'}[m]; }
+function dirLabel(d) { return {both:'REQ + RESP',req:'Solo REQ',resp:'Solo RESP'}[d]; }
+
+// ══════════════════════════════════════════════════════════════════
+// TOGGLE HANDLERS
+// ══════════════════════════════════════════════════════════════════
+function toggleMsg(btn) {
+  document.querySelectorAll('[data-msg]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.msg = btn.dataset.msg;
+  renderTable();
+}
+
+function toggleDir(btn, val) {
+  document.querySelectorAll('[data-dir]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.dir = val;
+  applyFilters();
+}
+
+function toggleObl(btn, val) {
+  document.querySelectorAll('[data-obl]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  state.obl = val;
+  applyFilters();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BADGE RENDERER
+// ══════════════════════════════════════════════════════════════════
+function renderBadge(val) {
+  if (!val || val === '—') return '<span class="badge-NA">—</span>';
+  // Handle "ME C26" style
+  const parts = val.split(/\s+/);
+  return parts.map(v => {
+    if (v === '—') return '<span class="badge-NA">—</span>';
+    if (v === 'M')  return '<span class="badge badge-M">M</span>';
+    if (v === 'ME') return '<span class="badge badge-ME">ME</span>';
+    if (v === 'CE') return '<span class="badge badge-CE">CE</span>';
+    if (v === 'O')  return '<span class="badge badge-O">O</span>';
+    if (/^C\d+$/.test(v)) return `<span class="badge badge-C" onclick="openCondition('${v}')" title="${escHtml(CONDITIONS[v]||'')}">⚠ ${v}</span>`;
+    return `<span class="badge badge-O">${v}</span>`;
+  }).join(' ');
+}
+
+function renderRefs(refs) {
+  if (!refs || refs.length === 0) return '';
+  return refs.map(r => {
+    if (/^C\d+$/.test(r)) return `<span class="ref-link" onclick="openCondition('${r}')">⚠ ${r}</span>`;
+    if (r.startsWith('3.')) return `<span class="ref-link" onclick="openTable('${r}')">📋 Tabla ${r}</span>`;
+    return '';
+  }).join('');
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER TABLE
+// ══════════════════════════════════════════════════════════════════
+function renderTable() {
+  const cols = MSG_COLS[state.msg];
+  const tbody = document.getElementById('deTableBody');
+  tbody.innerHTML = '';
+
+  DE_DATA.forEach(de => {
+    const reqVal  = de.vals[cols.req];
+    const respVal = de.vals[cols.resp];
+    const tr = document.createElement('tr');
+    tr.dataset.denum  = String(de.de);
+    tr.dataset.dename = de.name;
+    tr.dataset.req    = reqVal;
+    tr.dataset.resp   = respVal;
+
+    const refsHtml    = renderRefs(de.refs);
+    const commentText = de.comment ? `<div style="color:#777;font-size:11px;margin-top:3px">${escHtml(de.comment)}</div>` : '';
+
+    tr.innerHTML = `
+      <td class="de-num">DE-${de.de}</td>
+      <td class="de-name">${escHtml(de.name)}</td>
+      <td class="de-fmt"><code>${escHtml(de.fmt)}</code></td>
+      <td class="de-len"><code>${escHtml(de.len)}</code></td>
+      <td class="cell-req">${renderBadge(reqVal)}</td>
+      <td class="cell-resp">${renderBadge(respVal)}</td>
+      <td class="de-comment">${refsHtml}${commentText}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  applyFilters();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DRAWER
+// ══════════════════════════════════════════════════════════════════
+function openDrawer(title, html, breadcrumb) {
+  document.getElementById('drawerTitle').textContent = title;
+  document.getElementById('drawerBody').innerHTML = html;
+  const bc = document.getElementById('drawerBreadcrumb');
+  bc.innerHTML = breadcrumb || '';
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+  drawerStack = [];
+}
+
+function openCondition(code) {
+  const text = CONDITIONS[code] || 'Condición no definida.';
+  openDrawer(
+    `${code} — Condición`,
+    `<div class="drawer-section"><h3>Descripción</h3><p>${escHtml(text)}</p></div>`,
+    `<span>Condiciones</span>`
+  );
+}
+
+function openTable(tableId) {
+  const t = TABLES[tableId];
+  if (!t) return;
+  let html = '';
+
+  if (t.html) {
+    html = `<div class="drawer-section"><h3>${escHtml(t.title)}</h3>${t.html}</div>`;
+  } else if (t.isSubElements) {
+    html = `<div class="drawer-section"><h3>${escHtml(t.title)}</h3>`;
+    if (t.desc) html += `<p>${escHtml(t.desc)}</p>`;
+    t.subElements.forEach(se => {
+      const seHtml = SUB_ELEMENTS[se.id] ? SUB_ELEMENTS[se.id].html : '<p style="color:#888;font-style:italic">Sin detalle disponible.</p>';
+      html += `<div class="sub-element-card" onclick="toggleSE(this)">
+        <div class="sub-element-card-header">
+          <span class="se-id">SE-${se.id}</span>
+          <span class="se-name">${escHtml(se.name)}</span>
+          <span style="margin-left:auto;font-size:11px;color:#888;font-weight:400">Tamaño: <code>${escHtml(se.size)}</code></span>
+          <span class="se-arrow">›</span>
+        </div>
+        <div class="se-body">${seHtml}</div>
+      </div>`;
+    });
+    html += '</div>';
+  } else if (t.isEMV) {
+    const emvHead = `<table class="ref-table" style="font-size:11px"><thead><tr><th>TAG</th><th>Descripción</th><th style="text-align:center">ID (B)</th><th style="text-align:center">Long. (B)</th><th style="text-align:center">Data (B)</th><th style="text-align:center">Total (B)</th></tr></thead><tbody>`;
+    const emvRow = tag => `<tr><td><code>${escHtml(tag.tag)}</code></td><td>${escHtml(tag.desc)}</td><td style="text-align:center">${tag.idLen}</td><td style="text-align:center">1</td><td style="text-align:center">${escHtml(tag.dataLen)}</td><td style="text-align:center">${escHtml(tag.total)}</td></tr>`;
+    html = `<div class="drawer-section"><h3>Tags EMV — Requerimiento</h3>${emvHead}`;
+    t.reqTags.forEach(tag => { html += emvRow(tag); });
+    html += `</tbody></table></div><div class="drawer-section"><h3>Tags EMV — Respuesta</h3>${emvHead}`;
+    t.respTags.forEach(tag => { html += emvRow(tag); });
+    html += '</tbody></table></div>';
+  } else {
+    html = `<div class="drawer-section"><h3>${escHtml(t.title)}</h3>`;
+    if (t.desc) html += `<p>${escHtml(t.desc)}</p>`;
+    if (t.sections) {
+      t.sections.forEach(sec => {
+        if (sec.subtitle) html += `<h4 style="margin:12px 0 6px;font-size:12px;color:var(--ripley-red)">${escHtml(sec.subtitle)}</h4>`;
+        html += `<table class="ref-table"><thead><tr><th>Código</th><th>Descripción</th></tr></thead><tbody>`;
+        sec.rows.forEach(r => { html += `<tr><td><code>${escHtml(r[0])}</code></td><td>${escHtml(r[1])}</td></tr>`; });
+        html += '</tbody></table>';
+      });
+    }
+    html += '</div>';
+  }
+
+  openDrawer(t.title, html, `<span onclick="closeDrawer()" style="cursor:pointer">Tablas</span> › Tabla ${tableId}`);
+}
+
+function toggleSE(card) {
+  card.classList.toggle('open');
+}
+
+function openSubElement(seId) {
+  const se = SUB_ELEMENTS[seId];
+  if (!se) return;
+  const bc = `<span onclick="openTable('3.9')" style="cursor:pointer">DE-48</span> › SE-${seId}`;
+  openDrawer(se.title, `<div class="drawer-section">${se.html}</div>`, bc);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', ['des','header','formats'][i] === tab);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  document.getElementById('filterBar').style.display = tab === 'des' ? 'flex' : 'none';
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  renderTable();
+});
+</script>
+</body>
+</html>

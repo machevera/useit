@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiMermaid — Editor de Diagramas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   DESIGN TOKENS — LIGHT (default)
+═══════════════════════════════════════ */
+:root {
+  --bg:           #F4F5F7;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F0F1F4;
+  --border:       #D8DAE0;
+  --border-strong:#B4B8C4;
+  --text:         #1A1D23;
+  --text-2:       #4A5060;
+  --text-3:       #8891A4;
+  --accent:       #1B4FD8;        /* corporate blue */
+  --accent-hover: #1540B8;
+  --accent-light: #E8EDFB;
+  --success:      #0D7A5F;
+  --success-bg:   #E6F5F1;
+  --warn:         #C05000;
+  --warn-bg:      #FEF0E6;
+  --editor-bg:    #FAFBFC;
+  --editor-lnum:  #C8CDD9;
+  --shadow-sm:    0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:    0 4px 12px rgba(0,0,0,.10), 0 2px 4px rgba(0,0,0,.06);
+  --radius:       6px;
+  --radius-lg:    10px;
+}
+
+/* ── DARK THEME ─────────────────────── */
+.dark {
+  --bg:           #0E1117;
+  --surface:      #161B27;
+  --surface-alt:  #1E2434;
+  --border:       #2C3347;
+  --border-strong:#3D4560;
+  --text:         #E4E8F0;
+  --text-2:       #96A0B8;
+  --text-3:       #5C6680;
+  --accent:       #4A80F0;
+  --accent-hover: #6494F5;
+  --accent-light: #1A2848;
+  --success:      #2DB891;
+  --success-bg:   #0D2A22;
+  --warn:         #F08040;
+  --warn-bg:      #2A1A0A;
+  --editor-bg:    #10141E;
+  --editor-lnum:  #2C3347;
+  --shadow-sm:    0 1px 3px rgba(0,0,0,.3);
+  --shadow-md:    0 4px 16px rgba(0,0,0,.4);
+}
+
+/* ═══════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  transition: background .25s, color .25s;
+  overflow: hidden;
+}
+
+button { cursor: pointer; font-family: inherit; }
+select { font-family: inherit; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+
+/* ═══════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* ── TOP BAR ────────────────────────── */
+#topbar {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 16px;
+  gap: 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-right: 8px;
+}
+.brand-name {
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -.3px;
+}
+.brand-ver {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.divider-v {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* template select */
+#templateSelect {
+  height: 32px;
+  padding: 0 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+  cursor: pointer;
+}
+#templateSelect:hover { border-color: var(--accent); }
+#templateSelect:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+
+/* spacer */
+.spacer { flex: 1; }
+
+/* icon button */
+.ibtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text-2);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.ibtn:hover { background: var(--surface); border-color: var(--border-strong); color: var(--text); }
+.ibtn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.ibtn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.ibtn svg { flex-shrink: 0; }
+
+/* dropdown wrapper */
+.dd-wrap { position: relative; }
+.dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  z-index: 200;
+  display: none;
+  animation: ddIn .12s ease;
+}
+.dd-menu.open { display: block; }
+@keyframes ddIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dd-group-label {
+  padding: 8px 14px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.dd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  transition: background .12s, color .12s;
+}
+.dd-item:hover { background: var(--surface-alt); color: var(--text); }
+.dd-item svg { color: var(--text-3); }
+.dd-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── MAIN WORKSPACE ─────────────────── */
+#workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── EDITOR PANE ────────────────────── */
+#editor-pane {
+  width: 42%;
+  min-width: 240px;
+  max-width: 70%;
+  display: flex;
+  flex-direction: column;
+  background: var(--editor-bg);
+  border-right: 1px solid var(--border);
+  transition: background .25s;
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  height: 36px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.pane-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.pane-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 100px;
+  letter-spacing: .3px;
+}
+.badge-mono {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+.badge-live {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+/* editor area */
+.editor-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+#editor {
+  flex: 1;
+  background: transparent;
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  line-height: 1.75;
+  padding: 16px 18px;
+  border: none;
+  outline: none;
+  resize: none;
+  tab-size: 2;
+  transition: color .25s;
+}
+#editor::placeholder { color: var(--text-3); font-style: italic; }
+#editor::selection { background: var(--accent-light); }
+
+/* ── RESIZER ────────────────────────── */
+#resizer {
+  width: 4px;
+  background: var(--border);
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background .15s;
+  position: relative;
+}
+#resizer::after {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+}
+#resizer:hover, #resizer.active { background: var(--accent); }
+
+/* ── PREVIEW PANE ───────────────────── */
+#preview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  transition: background .25s;
+}
+
+/* canvas */
+#canvas {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  position: relative;
+}
+
+/* subtle dot grid */
+#canvas::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: .5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#diagram-output {
+  position: relative;
+  z-index: 1;
+  transition: transform .2s ease;
+  transform-origin: center center;
+}
+#diagram-output svg {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  display: block;
+}
+
+/* empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-3);
+  font-size: 13px;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+.empty-icon {
+  width: 56px;
+  height: 56px;
+  border: 2px dashed var(--border-strong);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--border-strong);
+}
+
+/* error */
+.err-box {
+  max-width: 480px;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--warn);
+  position: relative;
+  z-index: 1;
+}
+.err-box strong {
+  display: block;
+  font-size: 11px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: .8;
+}
+
+/* zoom controls */
+#zoom-bar {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 2px;
+  z-index: 10;
+}
+.z-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 500;
+  transition: background .1s, color .1s;
+}
+.z-btn:hover { background: var(--surface-alt); color: var(--accent); }
+#zoom-label {
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  font-family: 'IBM Plex Mono', monospace;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* ── STATUS BAR ─────────────────────── */
+#statusbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 28px;
+  padding: 0 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--text-3);
+  flex-shrink: 0;
+}
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 var(--success);
+  animation: heartbeat 2.5s infinite;
+}
+.dot.err { background: var(--warn); box-shadow: 0 0 0 0 var(--warn); animation: none; }
+.dot.idle { background: var(--text-3); animation: none; }
+@keyframes heartbeat {
+  0%,100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 40%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 0%, transparent); }
+}
+#status-msg { font-weight: 500; color: var(--text-2); }
+.sb-right { margin-left: auto; display: flex; gap: 12px; }
+#char-count { font-family: 'IBM Plex Mono', monospace; }
+
+/* ── TOAST ──────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--text);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 18px;
+  border-radius: 100px;
+  box-shadow: var(--shadow-md);
+  z-index: 9999;
+  pointer-events: none;
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+  opacity: 0;
+  white-space: nowrap;
+}
+#toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════ */
+@media (max-width: 680px) {
+  #workspace { flex-direction: column; }
+  #editor-pane { width: 100% !important; max-width: 100%; height: 45%; border-right: none; border-bottom: 1px solid var(--border); }
+  #resizer { display: none; }
+  .ibtn span { display: none; }
+  .ibtn { padding: 0 8px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ TOP BAR ══════════════════════════════════════════════ -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-name">MiMermaid</span>
+      <span class="brand-ver">v2.0</span>
+    </div>
+
+    <div class="divider-v"></div>
+
+    <select id="templateSelect" title="Cargar plantilla">
+      <option value="">Plantillas…</option>
+      <optgroup label="Flujo">
+        <option value="flowchart">Flowchart</option>
+        <option value="sequence">Diagrama de Secuencia</option>
+        <option value="stateDiagram">Diagrama de Estado</option>
+      </optgroup>
+      <optgroup label="Datos">
+        <option value="classDiagram">Diagrama de Clases</option>
+        <option value="erDiagram">Modelo ER</option>
+      </optgroup>
+      <optgroup label="Gestión">
+        <option value="gantt">Gantt</option>
+        <option value="journey">User Journey</option>
+        <option value="pie">Pie Chart</option>
+      </optgroup>
+    </select>
+
+    <div class="spacer"></div>
+
+    <!-- Theme toggle -->
+    <button class="ibtn" id="themeBtn" title="Cambiar modo">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/>
+        <line x1="12" y1="20" x2="12" y2="22"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="2" y1="12" x2="4" y2="12"/>
+        <line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+      <span id="themeLabel">Oscuro</span>
+    </button>
+
+    <!-- Save .mmd -->
+    <button class="ibtn" id="saveBtn" title="Guardar código como archivo .mmd">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+      </svg>
+      <span>Guardar .mmd</span>
+    </button>
+
+    <!-- Export dropdown -->
+    <div class="dd-wrap">
+      <button class="ibtn primary" id="exportBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Exportar</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-menu" id="exportMenu">
+        <div class="dd-group-label">Imagen</div>
+        <div class="dd-item" id="doExportSVG">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8.5 15.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM15.5 9h-1.75L12 15l-1.75-4.5H8.5"/></svg>
+          Exportar como SVG
+        </div>
+        <div class="dd-item" id="doExportPNG">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Exportar como PNG
+        </div>
+        <div class="dd-sep"></div>
+        <div class="dd-group-label">Código</div>
+        <div class="dd-item" id="doCopyCode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar código
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ WORKSPACE ════════════════════════════════════════════ -->
+  <div id="workspace">
+
+    <!-- Editor pane -->
+    <div id="editor-pane">
+      <div class="pane-header">
+        <span class="pane-title">Editor</span>
+        <span class="pane-badge badge-mono">Mermaid</span>
+      </div>
+      <div class="editor-wrap">
+        <textarea id="editor" spellcheck="false"
+          placeholder="Escribe código Mermaid…
+
+Ejemplo:
+flowchart TD
+    A[Inicio] --> B{¿Condición?}
+    B -->|Sí| C[Proceso]
+    B -->|No| D[Fin]
+    C --> D"></textarea>
+      </div>
+    </div>
+
+    <!-- Drag resizer -->
+    <div id="resizer"></div>
+
+    <!-- Preview pane -->
+    <div id="preview-pane">
+      <div class="pane-header">
+        <span class="pane-title">Vista Previa</span>
+        <span class="pane-badge badge-live">● Live</span>
+      </div>
+      <div id="canvas">
+        <div id="diagram-output"></div>
+
+        <!-- Zoom bar -->
+        <div id="zoom-bar">
+          <button class="z-btn" id="zoomOut" title="Alejar">−</button>
+          <span id="zoom-label">100%</span>
+          <button class="z-btn" id="zoomIn" title="Acercar">+</button>
+          <button class="z-btn" id="zoomReset" title="Restablecer" style="font-size:11px;">⊙</button>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div id="statusbar">
+        <div class="status-indicator">
+          <div class="dot idle" id="dot"></div>
+          <span id="status-msg">Listo</span>
+        </div>
+        <div class="sb-right">
+          <span id="char-count">0 char</span>
+        </div>
+      </div>
+    </div>
+  </div><!-- /workspace -->
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════ -->
+<script>
+/* ── TEMPLATES ─────────────────────────────────────────── */
+const TEMPLATES = {
+  flowchart: `flowchart TD
+    A([Inicio]) --> B{¿Usuario autenticado?}
+    B -->|Sí| C[Cargar Dashboard]
+    B -->|No| D[Pantalla de Login]
+    D --> E{¿Credenciales válidas?}
+    E -->|Sí| C
+    E -->|No| F[Mostrar error]
+    F --> D
+    C --> G([Fin])`,
+
+  sequence: `sequenceDiagram
+    actor U as Usuario
+    participant F as Frontend
+    participant A as API Gateway
+    participant DB as Base de Datos
+
+    U->>F: Ingresa credenciales
+    F->>A: POST /auth/login
+    A->>DB: Validar usuario
+    DB-->>A: Datos del usuario
+    A-->>F: JWT Token (200 OK)
+    F-->>U: Redirige al dashboard`,
+
+  classDiagram: `classDiagram
+    class Vehiculo {
+        +String marca
+        +String modelo
+        +int año
+        +arrancar() void
+        +detener() void
+    }
+    class Auto {
+        +int numeroPuertas
+        +abrirMaletero() void
+    }
+    class Camion {
+        +float capacidadCarga
+        +cargar(kg: float) void
+    }
+    class Motor {
+        +int cilindros
+        +float cilindrada
+        +encender() bool
+    }
+    Vehiculo <|-- Auto
+    Vehiculo <|-- Camion
+    Vehiculo *-- Motor : tiene`,
+
+  erDiagram: `erDiagram
+    CLIENTE {
+        int    id        PK
+        string nombre
+        string email
+        string telefono
+    }
+    PEDIDO {
+        int    id        PK
+        date   fecha
+        string estado
+        float  total
+        int    cliente_id FK
+    }
+    PRODUCTO {
+        int    id        PK
+        string nombre
+        float  precio
+        int    stock
+    }
+    DETALLE_PEDIDO {
+        int   pedido_id   FK
+        int   producto_id FK
+        int   cantidad
+        float precio_unit
+    }
+    CLIENTE     ||--o{ PEDIDO           : "realiza"
+    PEDIDO      ||--|{ DETALLE_PEDIDO   : "contiene"
+    PRODUCTO    ||--o{ DETALLE_PEDIDO   : "aparece en"`,
+
+  gantt: `gantt
+    title Plan de Proyecto — Q1 2025
+    dateFormat  YYYY-MM-DD
+    section Diseño
+    Investigación UX      :a1, 2025-01-06, 8d
+    Wireframes            :a2, after a1, 6d
+    Diseño visual         :a3, after a2, 8d
+    section Desarrollo
+    Arquitectura & setup  :b1, 2025-01-20, 4d
+    Módulo Frontend       :b2, after b1, 18d
+    API & Backend         :b3, after b1, 18d
+    Integración           :b4, after b2, 5d
+    section Cierre
+    QA & pruebas          :c1, after b4, 6d
+    Deploy producción     :c2, after c1, 2d`,
+
+  stateDiagram: `stateDiagram-v2
+    [*] --> Borrador
+    Borrador --> EnRevisión : Enviar
+    EnRevisión --> Aprobado : Aprobar
+    EnRevisión --> Borrador : Rechazar
+    Aprobado --> Publicado : Publicar
+    Publicado --> Archivado : Archivar
+    Archivado --> [*]
+    note right of EnRevisión
+        Revisado por el equipo
+        en máximo 48 h
+    end note`,
+
+  journey: `journey
+    title Experiencia de compra en línea
+    section Descubrimiento
+      Busca el producto en Google  : 3 : Cliente
+      Ve anuncio en redes sociales : 4 : Cliente
+      Entra al sitio web           : 5 : Cliente
+    section Evaluación
+      Revisa galería de imágenes   : 4 : Cliente
+      Lee reseñas de otros usuarios: 3 : Cliente
+      Compara precios              : 3 : Cliente
+    section Compra
+      Agrega al carrito            : 5 : Cliente
+      Completa el checkout         : 2 : Cliente
+      Recibe confirmación por email: 5 : Cliente`,
+
+  pie: `pie title Distribución de Tecnologías Backend — 2025
+    "Node.js"  : 34
+    "Python"   : 28
+    "Java"     : 18
+    "Go"       : 12
+    "Otros"    : 8`
+};
+
+/* ── STATE ─────────────────────────────────────────────── */
+let isDark = false;
+let zoom   = 1;
+let timer  = null;
+let ctr    = 0;
+
+/* ── DOM REFS ──────────────────────────────────────────── */
+const editor    = document.getElementById('editor');
+const output    = document.getElementById('diagram-output');
+const dot       = document.getElementById('dot');
+const statusMsg = document.getElementById('status-msg');
+const charCount = document.getElementById('char-count');
+const zoomLabel = document.getElementById('zoom-label');
+
+/* ── MERMAID INIT ──────────────────────────────────────── */
+function buildTheme(dark) {
+  return {
+    startOnLoad: false,
+    securityLevel: 'loose',
+    theme: dark ? 'dark' : 'neutral',
+    themeVariables: dark ? {
+      primaryColor:       '#1E2D54',
+      primaryTextColor:   '#E4E8F0',
+      primaryBorderColor: '#3D4560',
+      lineColor:          '#96A0B8',
+      secondaryColor:     '#1E2434',
+      tertiaryColor:      '#161B27',
+      background:         '#0E1117',
+      mainBkg:            '#161B27',
+      nodeBorder:         '#4A80F0',
+      fontFamily:         "'IBM Plex Sans', sans-serif",
+      fontSize:           '14px',
+    } : {
+      primaryColor:       '#E8EDFB',
+      primaryTextColor:   '#1A1D23',
+      primaryBorderColor: '#B4B8C4',
+      lineColor:          '#6B7390',
+      secondaryColor:     '#F0F1F4',
+      tertiaryColor:      '#FAFBFC',
+      background:         '#F4F5F7',
+      mainBkg:            '#FFFFFF',
+      nodeBorder:         '#1B4FD8',
+      fontFamily:         "'IBM Plex Sans', sans-serif",
+      fontSize:           '14px',
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence:  { actorMargin: 70, messageMargin: 30 },
+    gantt:     { barHeight: 22, fontSize: 12 },
+  };
+}
+
+function initMermaid() { mermaid.initialize(buildTheme(isDark)); }
+initMermaid();
+
+/* ── RENDER ─────────────────────────────────────────────── */
+async function render() {
+  const code = editor.value.trim();
+  charCount.textContent = `${code.length} char`;
+
+  if (!code) {
+    output.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M9 9h6M9 12h4"/>
+          </svg>
+        </div>
+        <div>Escribe código Mermaid en el editor</div>
+        <div style="font-size:12px;opacity:.7">o selecciona una plantilla arriba</div>
+      </div>`;
+    setStatus('idle', 'Listo');
+    return;
+  }
+
+  try {
+    ctr++;
+    const id = `mm${ctr}`;
+    const { svg } = await mermaid.render(id, code);
+    output.innerHTML = svg;
+    applyZoom();
+    setStatus('ok', 'Diagrama generado correctamente');
+  } catch (e) {
+    const msg = (e.message || 'Sintaxis inválida').split('\n').slice(0,4).join('\n');
+    output.innerHTML = `<div class="err-box"><strong>⚠ Error de sintaxis</strong>${escHtml(msg)}</div>`;
+    setStatus('err', 'Error de sintaxis');
+  }
+}
+
+function schedule() {
+  clearTimeout(timer);
+  timer = setTimeout(render, 380);
+}
+
+function setStatus(type, msg) {
+  statusMsg.textContent = msg;
+  dot.className = 'dot ' + (type === 'ok' ? '' : type === 'err' ? 'err' : 'idle');
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+editor.addEventListener('input', schedule);
+
+/* Tab → 2 spaces */
+editor.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = editor.selectionStart, end = editor.selectionEnd;
+    editor.value = editor.value.slice(0,s) + '  ' + editor.value.slice(end);
+    editor.selectionStart = editor.selectionEnd = s + 2;
+    schedule();
+  }
+});
+
+/* ── TEMPLATES ─────────────────────────────────────────── */
+document.getElementById('templateSelect').addEventListener('change', function () {
+  const v = this.value;
+  if (TEMPLATES[v]) { editor.value = TEMPLATES[v]; render(); }
+  this.value = '';
+});
+
+/* ── THEME TOGGLE ──────────────────────────────────────── */
+document.getElementById('themeBtn').addEventListener('click', () => {
+  isDark = !isDark;
+  document.body.classList.toggle('dark', isDark);
+  document.getElementById('themeLabel').textContent = isDark ? 'Claro' : 'Oscuro';
+  initMermaid();
+  render();
+});
+
+/* ── ZOOM ──────────────────────────────────────────────── */
+function applyZoom() {
+  output.style.transform = `scale(${zoom})`;
+  zoomLabel.textContent = Math.round(zoom * 100) + '%';
+}
+document.getElementById('zoomIn').addEventListener('click', () => {
+  zoom = Math.min(3, +(zoom + .15).toFixed(2)); applyZoom();
+});
+document.getElementById('zoomOut').addEventListener('click', () => {
+  zoom = Math.max(.2, +(zoom - .15).toFixed(2)); applyZoom();
+});
+document.getElementById('zoomReset').addEventListener('click', () => {
+  zoom = 1; applyZoom();
+});
+
+/* ── DROPDOWN TOGGLE ───────────────────────────────────── */
+const exportMenu = document.getElementById('exportMenu');
+document.getElementById('exportBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  exportMenu.classList.toggle('open');
+});
+document.addEventListener('click', () => exportMenu.classList.remove('open'));
+
+/* ── TOAST ─────────────────────────────────────────────── */
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* ── SAVE .MMD ─────────────────────────────────────────── */
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const code = editor.value;
+  if (!code.trim()) { toast('⚠ El editor está vacío'); return; }
+  const ts    = new Date().toISOString().slice(0,10);
+  const fname = `diagrama-${ts}.mmd`;
+  const blob  = new Blob([code], { type: 'text/plain; charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`✓ Guardado como ${fname}`);
+});
+
+/* ── EXPORT SVG ────────────────────────────────────────── */
+document.getElementById('doExportSVG').addEventListener('click', () => {
+  const svg = output.querySelector('svg');
+  if (!svg) { toast('⚠ No hay diagrama para exportar'); return; }
+  const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml; charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `diagrama-${new Date().toISOString().slice(0,10)}.svg`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('✓ SVG exportado');
+  exportMenu.classList.remove('open');
+});
+
+/* ── EXPORT PNG ────────────────────────────────────────── */
+document.getElementById('doExportPNG').addEventListener('click', () => {
+  const svg = output.querySelector('svg');
+  if (!svg) { toast('⚠ No hay diagrama para exportar'); return; }
+
+  const SCALE = 2.5;
+  const box   = svg.getBoundingClientRect();
+  const W     = box.width  * SCALE;
+  const H     = box.height * SCALE;
+  const svgStr = new XMLSerializer().serializeToString(svg);
+  const blob   = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url    = URL.createObjectURL(blob);
+  const img    = new Image();
+
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = isDark ? '#161B27' : '#FFFFFF';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
+    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `diagrama-${new Date().toISOString().slice(0,10)}.png`;
+    a.click();
+    toast('✓ PNG exportado (2.5×)');
+  };
+  img.onerror = () => { toast('⚠ Error al generar PNG'); URL.revokeObjectURL(url); };
+  img.src = url;
+  exportMenu.classList.remove('open');
+});
+
+/* ── COPY CODE ─────────────────────────────────────────── */
+document.getElementById('doCopyCode').addEventListener('click', () => {
+  navigator.clipboard.writeText(editor.value)
+    .then(() => toast('✓ Código copiado al portapapeles'))
+    .catch(() => toast('⚠ No se pudo copiar'));
+  exportMenu.classList.remove('open');
+});
+
+/* ── RESIZER ─────────────────────────────────────────────*/
+const resizer    = document.getElementById('resizer');
+const editorPane = document.getElementById('editor-pane');
+let dragging = false, startX, startW;
+
+resizer.addEventListener('mousedown', e => {
+  dragging = true;
+  startX = e.clientX;
+  startW = editorPane.offsetWidth;
+  resizer.classList.add('active');
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor     = 'col-resize';
+});
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const nw = Math.min(
+    editorPane.parentElement.offsetWidth * .7,
+    Math.max(200, startW + (e.clientX - startX))
+  );
+  editorPane.style.width = nw + 'px';
+});
+document.addEventListener('mouseup', () => {
+  if (!dragging) return;
+  dragging = false;
+  resizer.classList.remove('active');
+  document.body.style.userSelect = '';
+  document.body.style.cursor     = '';
+});
+
+/* ── INIT WITH DEFAULT TEMPLATE ────────────────────────── */
+editor.value = TEMPLATES.flowchart;
+render();
+</script>
+</body>
+</html>
